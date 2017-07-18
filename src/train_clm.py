@@ -14,6 +14,28 @@ import seqmod.utils as u
 from process import readpars
 
 
+class CondsMap(object):
+    def __init__(self):
+        self.index2conds = []
+        self.conds2index = {}
+
+    def hash_index(self, conds):
+        if conds in self.conds2index:
+            return self.conds2index[conds]
+        else:
+            self.index2conds.append(conds)
+            self.conds2index[conds] = len(self.conds2index)
+            return len(self.conds2index) - 1
+
+    def maybe_add_conds(self, conds):
+        if conds not in self.hashmap:
+            self.conds.append(conds)
+            self.hashmap[conds]
+
+    def get_conds(self, index):
+        return self.conds[index]
+
+
 def compute_length(l, length_bins):
     length = len(l)
     output = None
@@ -32,13 +54,23 @@ def load_data(path, lang_d, conds_d, length_bins=(50, 100, 150, 300)):
             yield line, [label, compute_length(line, length_bins)]
 
 
-def tensor_from_files(lines, conds, lang_d, conds_d):
-    def chars_gen():
-        for line, line_conds in zip(lines, conds):
-            line_conds = [d.index(c) for d, c in zip(conds_d, line_conds)]
-            for char in next(lang_d.transform([line])):
-                yield [char] + line_conds
-    return torch.LongTensor(list(chars_gen())).t().contiguous()
+def chars_conds(lines, conds, lang_d, conds_d, conds_map=None):
+    for line, line_conds in zip(lines, conds):
+        line_conds = tuple(d.index(c) for d, c in zip(conds_d, line_conds))
+        for char in next(lang_d.transform([line])):
+            yield char
+            if conds_map is None:
+                for c in line_conds:
+                    yield c
+            else:
+                yield conds_map.hash_index(line_conds)
+
+
+def examples_from_lines(lines, conds, lang_d, conds_d, conds_map=None):
+    gen = chars_conds(lines, conds, lang_d, conds_d, conds_map=conds_map)
+    tensor = torch.LongTensor(list(gen))
+    dims = 2 if conds_map is not None else len(conds_d) + 1
+    return tensor.view(dims, -1)
 
 
 if __name__ == '__main__':
@@ -70,11 +102,12 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--test_split', type=float, default=0.1)
     parser.add_argument('--dev_split', type=float, default=0.05)
-    parser.add_argument('--load_data', action='store_true')
     parser.add_argument('--load_model', action='store_true')
     parser.add_argument('--save_model', action='store_true')
-    parser.add_argument('--data_path')
     parser.add_argument('--model_path')
+    parser.add_argument('--load_data', action='store_true')
+    parser.add_argument('--save_data', action='store_true')
+    parser.add_argument('--data_path')
     # - optimizer
     parser.add_argument('--optim', default='Adam', type=str)
     parser.add_argument('--learning_rate', default=0.01, type=float)
@@ -100,6 +133,7 @@ if __name__ == '__main__':
         train, test, d = u.load_model(args.data_path)
         lang_d, *conds_d = d
     else:
+        conds_map = CondsMap()
         print("Fitting dictionaries")
         lang_d = Dict(max_size=args.max_size, min_freq=args.min_freq,
                       eos_token=u.EOS, bos_token=u.BOS)
@@ -114,12 +148,14 @@ if __name__ == '__main__':
 
         print("Processing datasets")
         print("Processing train")
-        train = tensor_from_files(train_lines, train_conds, lang_d, conds_d)
+        train = examples_from_lines(
+            train_lines, train_conds, lang_d, conds_d, conds_map=conds_map)
         del train_lines, train_conds
         print("Processing test")
         test_lines, test_conds = zip(*load_data(
             os.path.join(args.path, 'test.csv'), lang_d, conds_d))
-        test = tensor_from_files(test_lines, test_conds, lang_d, conds_d)
+        test = examples_from_lines(
+            test_lines, test_conds, lang_d, conds_d, conds_map=conds_map)
         del test_lines, test_conds
         d = tuple([lang_d] + conds_d)
 

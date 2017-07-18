@@ -37,8 +37,8 @@ class ChainPOSAwareLM(nn.Module):
                  pos_gate=True, word_gate=True):
         self.pos_vocab, self.word_vocab = vocab
         self.pos_emb_dim, self.word_emb_dim = emb_dim
-        self.pos_hid_dim, self.word_hid_dim = self.hid_dim
-        self.pos_num_layers, self.word_num_layers = self.num_layers
+        self.pos_hid_dim, self.word_hid_dim = hid_dim
+        self.pos_num_layers, self.word_num_layers = num_layers
         self.pos_gate, self.word_gate = pos_gate, word_gate
         self.cell = cell
         self.dropout = dropout
@@ -154,6 +154,9 @@ class ChainPOSAwareLM(nn.Module):
 
     def generate(self, p_dict, w_dict, seed=None, max_seq_len=20,
                  temperature=1., batch_size=5, gpu=False, ignore_eos=False):
+        """
+        TODO
+        """
         def sample(out):
             prev = out.div(temperature).exp_().multinomial().t()
             score = u.select_cols(out.data.cpu(), prev.squeeze().data.cpu())
@@ -165,8 +168,8 @@ class ChainPOSAwareLM(nn.Module):
                 out = out.cuda()
             return out
 
-        p_hyp, w_hyp, p_hid, w_hid = [], [], None, None
-        p_scores, w_scores = 0, 0
+        p_hid, w_hid = None, None
+        p_hyp, w_hyp, p_scores, w_scores = [], [], 0, 0
         w_eos = word_dict.get_eos()
         finished = np.array([False] * batch_size)
         p_prev = init_prev(pos_dict.get_bos()).unsqueeze(0)
@@ -182,7 +185,6 @@ class ChainPOSAwareLM(nn.Module):
             p_out, p_hid = self.pos_rnn(
                 torch.cat([p_emb.squeeze(0), last_w_hid], 1),
                 hidden=p_hid)
-            p_out = self.pos_project(p_out)
             # word
             last_p_hid = self.get_last_hid(p_hid)
             if self.pos_gate:
@@ -190,8 +192,8 @@ class ChainPOSAwareLM(nn.Module):
             w_out, w_hid = self.word_rnn(
                 torch.cat([w_emb.squeeze(0), last_p_hid], 1),
                 hidden=w_hid)
-            w_out = self.word_project(w_out)
-            (p_prev, p_score), (w_prev, w_score) = sample(p_out), sample(w_out)
+            (p_prev, p_score) = sample(self.pos_project(p_out))
+            (w_prev, w_score) = sample(self.word_project(w_out))
             # hyps
             mask = (w_prev.squeeze().data == w_eos).cpu().numpy() == 1
             finished[mask] = True

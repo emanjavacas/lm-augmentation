@@ -302,6 +302,8 @@ if __name__ == '__main__':
     parser.add_argument('--word_hid_dim', default=200, type=int)
     parser.add_argument('--pos_num_layers', default=1, type=int)
     parser.add_argument('--word_num_layers', default=1, type=int)
+    parser.add_argument('--pos_gate', action='store_true')
+    parser.add_argument('--word_gate', action='store_true')
     # train
     parser.add_argument('--pos_weight', default=0.5, type=float)
     parser.add_argument('--dropout', default=0.3, type=float)
@@ -339,6 +341,7 @@ if __name__ == '__main__':
         (args.pos_emb_dim, args.word_emb_dim),
         (args.pos_hid_dim, args.word_hid_dim),
         num_layers=(args.pos_num_layers, args.word_num_layers),
+        pos_gate=args.pos_gate, word_gate=args.word_gate,
         dropout=args.dropout)
 
     m.apply(u.make_initializer())

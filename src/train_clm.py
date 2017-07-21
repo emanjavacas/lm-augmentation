@@ -5,35 +5,13 @@ import torch
 import torch.nn as nn
 
 from seqmod.modules.lm import LM
-from seqmod.misc.dataset import BlockDataset, Dict
+from seqmod.misc.dataset import BlockDataset, Dict, CompressionTable
 from seqmod.misc.optimizer import Optimizer
 from seqmod.misc.trainer import CLMTrainer
 from seqmod.misc.loggers import StdLogger
 import seqmod.utils as u
 
 from process import readpars
-
-
-class CondsMap(object):
-    def __init__(self):
-        self.index2conds = []
-        self.conds2index = {}
-
-    def hash_index(self, conds):
-        if conds in self.conds2index:
-            return self.conds2index[conds]
-        else:
-            self.index2conds.append(conds)
-            self.conds2index[conds] = len(self.conds2index)
-            return len(self.conds2index) - 1
-
-    def maybe_add_conds(self, conds):
-        if conds not in self.hashmap:
-            self.conds.append(conds)
-            self.hashmap[conds]
-
-    def get_conds(self, index):
-        return self.conds[index]
 
 
 def compute_length(l, length_bins):
@@ -54,23 +32,22 @@ def load_data(path, lang_d, conds_d, length_bins=(50, 100, 150, 300)):
             yield line, [label, compute_length(line, length_bins)]
 
 
-def chars_conds(lines, conds, lang_d, conds_d, conds_map=None):
+def chars_conds(lines, conds, lang_d, conds_d, table=None):
     for line, line_conds in zip(lines, conds):
         line_conds = tuple(d.index(c) for d, c in zip(conds_d, line_conds))
         for char in next(lang_d.transform([line])):
             yield char
-            if conds_map is None:
+            if table is None:
                 for c in line_conds:
                     yield c
             else:
-                yield conds_map.hash_index(line_conds)
+                yield table.hash_vals(line_conds)
 
 
-def examples_from_lines(lines, conds, lang_d, conds_d, conds_map=None):
-    gen = chars_conds(lines, conds, lang_d, conds_d, conds_map=conds_map)
-    tensor = torch.LongTensor(list(gen))
-    dims = 2 if conds_map is not None else len(conds_d) + 1
-    return tensor.view(dims, -1)
+def examples_from_lines(lines, conds, lang_d, conds_d, table=None):
+    gen = chars_conds(lines, conds, lang_d, conds_d, table=table)
+    dims = 2 if table is not None else len(conds_d) + 1
+    return torch.LongTensor(list(gen)).view(dims, -1)
 
 
 if __name__ == '__main__':
@@ -133,7 +110,6 @@ if __name__ == '__main__':
         train, test, d = u.load_model(args.data_path)
         lang_d, *conds_d = d
     else:
-        conds_map = CondsMap()
         print("Fitting dictionaries")
         lang_d = Dict(max_size=args.max_size, min_freq=args.min_freq,
                       eos_token=u.EOS, bos_token=u.BOS)
@@ -148,14 +124,15 @@ if __name__ == '__main__':
 
         print("Processing datasets")
         print("Processing train")
+        table = CompressionTable(len(conds_d))
         train = examples_from_lines(
-            train_lines, train_conds, lang_d, conds_d, conds_map=conds_map)
+            train_lines, train_conds, lang_d, conds_d, table=table)
         del train_lines, train_conds
         print("Processing test")
         test_lines, test_conds = zip(*load_data(
             os.path.join(args.path, 'test.csv'), lang_d, conds_d))
         test = examples_from_lines(
-            test_lines, test_conds, lang_d, conds_d, conds_map=conds_map)
+            test_lines, test_conds, lang_d, conds_d, table=table)
         del test_lines, test_conds
         d = tuple([lang_d] + conds_d)
 

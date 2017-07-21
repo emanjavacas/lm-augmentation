@@ -116,6 +116,23 @@ class ChainPOSAwareLM(nn.Module):
             h, _ = h
         return h[-1]
 
+    def step(self, p, w, p_hid=None, w_hid=None):
+        w_hid = w_hid or self.init_hidden_for(w, 'word')
+        p_hid = p_hid or self.init_hidden_for(p, 'pos')
+        last_w_hid = self.get_last_hid(w_hid)
+        if self.word_gate:
+            last_w_hid = self.w2p_gate(last_w_hid)
+        p_out, p_hid = self.pos_rnn(
+            torch.cat([p, last_w_hid], 1),
+            hidden=p_hid)
+        last_p_hid = self.get_last_hid(p_hid)
+        if self.pos_gate:
+            last_p_hid = self.p2w_gate(last_p_hid)
+        w_out, w_hid = self.word_rnn(
+            torch.cat([w, last_p_hid], 1),
+            hidden=w_hid)
+        return self.pos_project(p_out), self.word_project(w_out)
+
     def forward(self, pos, word, hidden=None):
         """
         <bos>/<bos> NNP/Pierre NNP/Vinken CD/61 ... ,/, MD/will <eos>/<eos>
@@ -134,20 +151,7 @@ class ChainPOSAwareLM(nn.Module):
         p_hid, w_hid = hidden if hidden is not None else (None, None)
         p_emb, w_emb = self.pos_emb(pos), self.word_emb(word)
         for p, w in zip(p_emb, w_emb):
-            w_hid = w_hid or self.init_hidden_for(w, 'word')
-            p_hid = p_hid or self.init_hidden_for(p, 'pos')
-            last_w_hid = self.get_last_hid(w_hid)
-            if self.word_gate:
-                last_w_hid = self.w2p_gate(last_w_hid)
-            p_out, p_hid = self.pos_rnn(
-                torch.cat([p, last_w_hid], 1),
-                hidden=p_hid)
-            last_p_hid = self.get_last_hid(p_hid)
-            if self.pos_gate:
-                last_p_hid = self.p2w_gate(last_p_hid)
-            w_out, w_hid = self.word_rnn(
-                torch.cat([w, last_p_hid], 1),
-                hidden=w_hid)
+            p_out, w_out = self.step(p, w, p_hid=p_hid, w_hid=w_hid)
             p_outs.append(self.pos_project(p_out))
             w_outs.append(self.word_project(w_out))
         return (torch.stack(p_outs), torch.stack(w_outs)), (p_hid, w_hid)
@@ -164,34 +168,19 @@ class ChainPOSAwareLM(nn.Module):
 
         def init_prev(bos):
             out = Variable(torch.LongTensor([bos] * batch_size), volatile=True)
-            if gpu:
-                out = out.cuda()
+            out = out.cuda() if gpu else out
             return out
 
-        p_hid, w_hid = None, None
+        p_hid, w_hid, finished = None, None, np.array([False] * batch_size)
         p_hyp, w_hyp, p_scores, w_scores = [], [], 0, 0
         w_eos = word_dict.get_eos()
-        finished = np.array([False] * batch_size)
-        p_prev = init_prev(pos_dict.get_bos()).unsqueeze(0)
-        w_prev = init_prev(word_dict.get_bos()).unsqueeze(0)
+        p_prev = init_prev(pos_dict.get_bos())
+        w_prev = init_prev(word_dict.get_bos())
         for _ in range(max_seq_len):
             p_emb, w_emb = self.pos_emb(p_prev), self.word_emb(w_prev)
             p_hid = p_hid or self.init_hidden_for(p_emb[0], 'pos')
             w_hid = w_hid or self.init_hidden_for(w_emb[0], 'word')
-            # pos
-            last_w_hid = self.get_last_hid(w_hid)
-            if self.word_gate:
-                last_w_hid = self.w2p_gate(last_w_hid)
-            p_out, p_hid = self.pos_rnn(
-                torch.cat([p_emb.squeeze(0), last_w_hid], 1),
-                hidden=p_hid)
-            # word
-            last_p_hid = self.get_last_hid(p_hid)
-            if self.pos_gate:
-                last_p_hid = self.p2w_gate(last_p_hid)
-            w_out, w_hid = self.word_rnn(
-                torch.cat([w_emb.squeeze(0), last_p_hid], 1),
-                hidden=w_hid)
+            p_out, w_out = self.step(p_emb, w_emb, p_hid=p_hid, w_hid=w_hid)
             (p_prev, p_score) = sample(self.pos_project(p_out))
             (w_prev, w_score) = sample(self.word_project(w_out))
             # hyps

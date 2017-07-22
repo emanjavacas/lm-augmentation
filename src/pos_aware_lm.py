@@ -117,6 +117,12 @@ class ChainPOSAwareLM(nn.Module):
         return h[-1]
 
     def step(self, p, w, p_hid=None, w_hid=None):
+        """
+        p: tensor (batch_size x emb_dim), embedding for POS-tag at current step
+        w: tensor (batch_size x emb_dim), embedding for word at current step
+        p_hid: tensor (num_layers x batch_size x hid_dim)
+        w_hid: tensor (num_layers x batch_size x hid_dim)
+        """
         w_hid = w_hid or self.init_hidden_for(w, 'word')
         p_hid = p_hid or self.init_hidden_for(p, 'pos')
         last_w_hid = self.get_last_hid(w_hid)
@@ -125,13 +131,15 @@ class ChainPOSAwareLM(nn.Module):
         p_out, p_hid = self.pos_rnn(
             torch.cat([p, last_w_hid], 1),
             hidden=p_hid)
+        p_out = self.pos_project(p_out)
         last_p_hid = self.get_last_hid(p_hid)
         if self.pos_gate:
             last_p_hid = self.p2w_gate(last_p_hid)
         w_out, w_hid = self.word_rnn(
             torch.cat([w, last_p_hid], 1),
             hidden=w_hid)
-        return self.pos_project(p_out), self.word_project(w_out)
+        w_out = self.word_project(w_out)
+        return (p_out, w_out), (p_hid, w_hid)
 
     def forward(self, pos, word, hidden=None):
         """
@@ -151,16 +159,13 @@ class ChainPOSAwareLM(nn.Module):
         p_hid, w_hid = hidden if hidden is not None else (None, None)
         p_emb, w_emb = self.pos_emb(pos), self.word_emb(word)
         for p, w in zip(p_emb, w_emb):
-            p_out, w_out = self.step(p, w, p_hid=p_hid, w_hid=w_hid)
-            p_outs.append(self.pos_project(p_out))
-            w_outs.append(self.word_project(w_out))
+            (p_out, w_out), (p_hid, w_hid) = self.step(
+                p, w, p_hid=p_hid, w_hid=w_hid)
+            p_outs.append(p_out), w_outs.append(w_out)
         return (torch.stack(p_outs), torch.stack(w_outs)), (p_hid, w_hid)
 
     def generate(self, p_dict, w_dict, seed=None, max_seq_len=20,
                  temperature=1., batch_size=5, gpu=False, ignore_eos=False):
-        """
-        TODO
-        """
         def sample(out):
             prev = out.div(temperature).exp_().multinomial().t()
             score = u.select_cols(out.data.cpu(), prev.squeeze().data.cpu())
@@ -180,14 +185,13 @@ class ChainPOSAwareLM(nn.Module):
             p_emb, w_emb = self.pos_emb(p_prev), self.word_emb(w_prev)
             p_hid = p_hid or self.init_hidden_for(p_emb[0], 'pos')
             w_hid = w_hid or self.init_hidden_for(w_emb[0], 'word')
-            p_out, w_out = self.step(p_emb, w_emb, p_hid=p_hid, w_hid=w_hid)
-            (p_prev, p_score) = sample(self.pos_project(p_out))
-            (w_prev, w_score) = sample(self.word_project(w_out))
+            (p_out, w_out), (p_hid, w_hid) = self.step(
+                p_emb, w_emb, p_hid=p_hid, w_hid=w_hid)
+            (p_prev, p_score), (w_prev, w_score) = sample(p_out), sample(w_out)
             # hyps
             mask = (w_prev.squeeze().data == w_eos).cpu().numpy() == 1
             finished[mask] = True
-            if all(finished == True):  # nopep8
-                break
+            if all(finished == True): break
             p_hyp.append(p_prev.squeeze().data.tolist())
             w_hyp.append(w_prev.squeeze().data.tolist())
             # scores
@@ -201,10 +205,10 @@ class ChainPOSAwareLM(nn.Module):
 
 def repackage_hidden(hidden):
     def _repackage_hidden(h):
-        if type(h) == Variable:
-            return Variable(h.data)
-        else:
+        if isinstance(h, tuple):
             return tuple(_repackage_hidden(v) for v in h)
+        else:
+            return Variable(h.data)
     p_hid, w_hid = hidden
     return (_repackage_hidden(p_hid), _repackage_hidden(w_hid))
 
@@ -226,11 +230,12 @@ class POSAwareLMTrainer(Trainer):
         hidden = self.batch_state.get('hidden')
         (p_out, w_out), hidden = self.model(src_pos, src_word, hidden=hidden)
         self.batch_state['hidden'] = repackage_hidden(hidden)
+        print(p_out.size(), w_out.size())
+        print(trg_pos.size(), trg_word.size())
         p_loss, w_loss = self.criterion(
             p_out.view(seq_len * batch_size, -1), trg_pos.view(-1),
             w_out.view(seq_len * batch_size, -1), trg_word.view(-1))
         if dataset == 'train':
-            # weight the loss
             weighted_p_loss = p_loss * self.pos_weight
             weighted_w_loss = w_loss * (1 - self.pos_weight)
             (weighted_p_loss + weighted_w_loss).backward()

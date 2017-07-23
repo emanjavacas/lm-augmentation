@@ -116,15 +116,13 @@ class ChainPOSAwareLM(nn.Module):
             h, _ = h
         return h[-1]
 
-    def step(self, p, w, p_hid=None, w_hid=None):
+    def step(self, p, w, p_hid, w_hid):
         """
         p: tensor (batch_size x emb_dim), embedding for POS-tag at current step
         w: tensor (batch_size x emb_dim), embedding for word at current step
         p_hid: tensor (num_layers x batch_size x hid_dim)
         w_hid: tensor (num_layers x batch_size x hid_dim)
         """
-        w_hid = w_hid or self.init_hidden_for(w, 'word')
-        p_hid = p_hid or self.init_hidden_for(p, 'pos')
         last_w_hid = self.get_last_hid(w_hid)
         if self.word_gate:
             last_w_hid = self.w2p_gate(last_w_hid)
@@ -159,13 +157,16 @@ class ChainPOSAwareLM(nn.Module):
         p_hid, w_hid = hidden if hidden is not None else (None, None)
         p_emb, w_emb = self.pos_emb(pos), self.word_emb(word)
         for p, w in zip(p_emb, w_emb):
+            p_hid = p_hid or self.init_hidden_for(p, 'pos')
+            w_hid = w_hid or self.init_hidden_for(w, 'word')
             (p_out, w_out), (p_hid, w_hid) = self.step(
                 p, w, p_hid=p_hid, w_hid=w_hid)
             p_outs.append(p_out), w_outs.append(w_out)
         return (torch.stack(p_outs), torch.stack(w_outs)), (p_hid, w_hid)
 
-    def generate(self, p_dict, w_dict, seed=None, max_seq_len=20,
+    def generate(self, p_dict, w_dict, seed=None, max_seq_len=20, hidden=None,
                  temperature=1., batch_size=5, gpu=False, ignore_eos=False):
+
         def sample(out):
             prev = out.div(temperature).exp_().multinomial().t()
             score = u.select_cols(out.data.cpu(), prev.squeeze().data.cpu())
@@ -176,15 +177,16 @@ class ChainPOSAwareLM(nn.Module):
             out = out.cuda() if gpu else out
             return out
 
-        p_hid, w_hid, finished = None, None, np.array([False] * batch_size)
+        finished = None, None, np.array([False] * batch_size)
         p_hyp, w_hyp, p_scores, w_scores = [], [], 0, 0
+        p_hid, w_hid = hidden if hidden is not None else (None, None)
         w_eos = word_dict.get_eos()
         p_prev = init_prev(pos_dict.get_bos())
         w_prev = init_prev(word_dict.get_bos())
         for _ in range(max_seq_len):
             p_emb, w_emb = self.pos_emb(p_prev), self.word_emb(w_prev)
-            p_hid = p_hid or self.init_hidden_for(p_emb[0], 'pos')
-            w_hid = w_hid or self.init_hidden_for(w_emb[0], 'word')
+            p_hid = p_hid or self.init_hidden_for(p_emb, 'pos')
+            w_hid = w_hid or self.init_hidden_for(w_emb, 'word')
             (p_out, w_out), (p_hid, w_hid) = self.step(
                 p_emb, w_emb, p_hid=p_hid, w_hid=w_hid)
             (p_prev, p_score), (w_prev, w_score) = sample(p_out), sample(w_out)

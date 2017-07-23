@@ -177,7 +177,7 @@ class ChainPOSAwareLM(nn.Module):
             out = out.cuda() if gpu else out
             return out
 
-        finished = None, None, np.array([False] * batch_size)
+        finished = np.array([False] * batch_size)
         p_hyp, w_hyp, p_scores, w_scores = [], [], 0, 0
         p_hid, w_hid = hidden if hidden is not None else (None, None)
         w_eos = word_dict.get_eos()

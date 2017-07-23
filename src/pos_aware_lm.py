@@ -230,8 +230,6 @@ class POSAwareLMTrainer(Trainer):
         hidden = self.batch_state.get('hidden')
         (p_out, w_out), hidden = self.model(src_pos, src_word, hidden=hidden)
         self.batch_state['hidden'] = repackage_hidden(hidden)
-        print(p_out.size(), w_out.size())
-        print(trg_pos.size(), trg_word.size())
         p_loss, w_loss = self.criterion(
             p_out.view(seq_len * batch_size, -1), trg_pos.view(-1),
             w_out.view(seq_len * batch_size, -1), trg_word.view(-1))
@@ -301,8 +299,8 @@ if __name__ == '__main__':
     # train
     parser.add_argument('--pos_weight', default=0.5, type=float)
     parser.add_argument('--dropout', default=0.3, type=float)
-    parser.add_argument('--batch_size', default=100, type=int)
-    parser.add_argument('--bptt', default=50, type=int)
+    parser.add_argument('--batch_size', default=20, type=int)
+    parser.add_argument('--bptt', default=20, type=int)
     parser.add_argument('--epochs', default=10, type=int)
     parser.add_argument('--optim', default='Adam')
     parser.add_argument('--lr', default=0.001, type=float)

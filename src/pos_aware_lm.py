@@ -275,8 +275,8 @@ def make_generate_hook(pos_dict, word_dict):
             trainer.model.generate(pos_dict, word_dict, gpu=args.gpu)
         for p, w, p_score, w_score in zip(p_hyps, w_hyps, p_scores, w_scores):
             p_str, w_str = hyp_to_str(p, w, pos_dict, word_dict)
-        trainer.log("info", "Score [%g, %g]: \n%s\n%s" %
-                    (p_score, w_score, p_str, w_str))
+            trainer.log("info", "Score [%g, %g]: \n%s\n%s" %
+                        (p_score, w_score, p_str, w_str))
     return hook
 
 

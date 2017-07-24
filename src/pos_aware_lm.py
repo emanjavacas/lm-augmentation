@@ -77,7 +77,7 @@ class ChainPOSAwareLM(nn.Module):
         # word rnn
         self.word_rnn = stacked(
             self.word_num_layers,
-            self.word_emb_dim + self.pos_hid_dim,
+            self.word_emb_dim + self.pos_emb_dim + self.pos_hid_dim,
             self.word_hid_dim,
             dropout=self.dropout)
         # word gate
@@ -134,7 +134,7 @@ class ChainPOSAwareLM(nn.Module):
         if self.pos_gate:
             last_p_hid = self.p2w_gate(last_p_hid)
         w_out, w_hid = self.word_rnn(
-            torch.cat([w, last_p_hid], 1),
+            torch.cat([w, p, last_p_hid], 1),
             hidden=w_hid)
         w_out = self.word_project(w_out)
         return (p_out, w_out), (p_hid, w_hid)

@@ -188,7 +188,7 @@ class ChainPOSAwareLM(nn.Module):
             p_hid = p_hid or self.init_hidden_for(p_emb, 'pos')
             w_hid = w_hid or self.init_hidden_for(w_emb, 'word')
             (p_out, w_out), (p_hid, w_hid) = self.step(
-                p_emb, w_emb, p_hid=p_hid, w_hid=w_hid)
+                p_emb.squeeze(), w_emb.squeeze(), p_hid=p_hid, w_hid=w_hid)
             (p_prev, p_score), (w_prev, w_score) = sample(p_out), sample(w_out)
             # hyps
             mask = (w_prev.squeeze().data == w_eos).cpu().numpy() == 1

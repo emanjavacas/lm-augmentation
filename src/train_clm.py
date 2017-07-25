@@ -65,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--deepout_layers', default=0, type=int)
     parser.add_argument('--deepout_act', default='MaxOut')
     # dataset
-    parser.add_argument('--path', required=True)
+    parser.add_argument('--path')
     parser.add_argument('--processed', action='store_true')
     parser.add_argument('--max_size', default=1000000, type=int)
     parser.add_argument('--min_freq', default=1, type=int)

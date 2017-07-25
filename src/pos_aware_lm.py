@@ -14,7 +14,7 @@ from seqmod.modules.custom import StackedGRU, StackedLSTM
 from seqmod.loaders import load_penn3
 from seqmod.misc.dataset import Dict, BlockDataset
 from seqmod.misc.optimizer import Optimizer
-from seqmod.misc.trainer import Trainer
+from seqmod.misc.trainer import LMTrainer
 from seqmod.misc.loggers import StdLogger
 
 
@@ -215,7 +215,7 @@ def repackage_hidden(hidden):
     return (_repackage_hidden(p_hid), _repackage_hidden(w_hid))
 
 
-class POSAwareLMTrainer(Trainer):
+class POSAwareLMTrainer(LMTrainer):
     def __init__(self, *args, pos_weight=0.5, **kwargs):
         super(POSAwareLMTrainer, self).__init__(*args, **kwargs)
         if pos_weight < 0 or pos_weight > 1:
@@ -269,10 +269,10 @@ def hyp_to_str(p_hyp, w_hyp, pos_dict, word_dict):
     return p_str, w_str
 
 
-def make_generate_hook(pos_dict, word_dict):
+def make_generate_hook(pos_dict, word_dict, **kwargs):
     def hook(trainer, epoch, batch, checkpoints):
         (p_hyps, w_hyps), (p_scores, w_scores) = \
-            trainer.model.generate(pos_dict, word_dict, gpu=args.gpu)
+            trainer.model.generate(pos_dict, word_dict, gpu=args.gpu, **kwargs)
         for p, w, p_score, w_score in zip(p_hyps, w_hyps, p_scores, w_scores):
             p_str, w_str = hyp_to_str(p, w, pos_dict, word_dict)
             trainer.log("info", "Score [%g, %g]: \n%s\n%s" %
@@ -303,12 +303,15 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', default=0.3, type=float)
     parser.add_argument('--batch_size', default=20, type=int)
     parser.add_argument('--bptt', default=20, type=int)
+    parser.add_argument('--retain_hidden', action='store_true')
     parser.add_argument('--epochs', default=10, type=int)
     parser.add_argument('--optim', default='Adam')
     parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--hooks_per_epoch', default=1, type=int)
     parser.add_argument('--checkpoints', default=20, type=int)
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--temperature', default=0.6, type=float)
+    parser.add_argument('--max_seq_len', default=20, type=int)
     args = parser.parse_args()
 
     if args.load_dataset:
@@ -349,7 +352,7 @@ if __name__ == '__main__':
     optim = Optimizer(m.parameters(), args.optim, lr=args.lr)
     trainer = POSAwareLMTrainer(
         m, {'train': train, 'valid': valid}, crit, optim,
-        pos_weight=args.pos_weight)
+        pos_weight=args.pos_weight, reset_hidden=not args.retain_hidden)
     trainer.add_loggers(StdLogger())
     trainer.add_hook(make_generate_hook(pos_dict, word_dict),
                      hooks_per_epoch=args.hooks_per_epoch)

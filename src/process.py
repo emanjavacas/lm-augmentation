@@ -2,36 +2,47 @@
 import os
 import csv
 
-import ucto
+try:
+    import ucto
+except ImportError:
+    print("Couldn't import ucto; using dummy tokenizer")
+    ucto = None
 
 from sklearn.model_selection import train_test_split
 
 
 def make_tokenizer(lang):
-    return ucto.Tokenizer("tokconfig-{lang}".format(lang=lang),
-                          paragraphdetection=True)
+    if ucto is not None:
+        return ucto.Tokenizer("tokconfig-{lang}".format(lang=lang),
+                              paragraphdetection=True)
 
 
 def split_sentences(pars, tokenizer, lang):
     sentences, prev_ending = [], False
     for par in pars:
-        tokenizer.process(par)
-        sentence = ''
-        for token in tokenizer:
-            if prev_ending and token.isbeginofsentence():
+        if tokenizer is not None:
+            tokenizer.process(par)
+            sentence = ''
+            for token in tokenizer:
+                if prev_ending and token.isbeginofsentence():
+                    sentence = sentence.strip()
+                    if sentence:
+                        sentences.append(sentence)
+                        sentence = ''
+                prev_ending = token.isendofsentence()
+                sentence += str(token)
+                if not token.nospace():
+                    sentence += ' '
+            if sentence:
                 sentence = sentence.strip()
-                if sentence:
-                    sentences.append(sentence)
-                    sentence = ''
-            prev_ending = token.isendofsentence()
-            sentence += str(token)
-            if not token.nospace():
-                sentence += ' '
-        if sentence:
-            sentence = sentence.strip()
-            sentences.append(sentence)
-        yield sentences
-        sentences = []
+                sentences.append(sentence)
+            yield sentences
+            sentences = []
+        else:
+            for line in par.split('\n'):
+                sentences.append(line.split())
+            yield sentences
+            sentences = []
 
 
 def split_pars(filename):

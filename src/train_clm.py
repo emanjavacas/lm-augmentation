@@ -107,7 +107,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.load_data:
-        train, test, d = u.load_model(args.data_path)
+        train, test, d, table = u.load_model(args.data_path)
         lang_d, *conds_d = d
     else:
         print("Fitting dictionaries")
@@ -138,14 +138,16 @@ if __name__ == '__main__':
 
         if args.save_data:
             assert args.data_path, "save_data requires data_path"
-            u.save_model((train, test, d, args.data_path))
+            u.save_model((train, test, d, table), args.data_path)
 
     train, valid = BlockDataset.splits_from_data(
-        tuple(train), d, args.batch_size, args.bptt, gpu=args.gpu,
+        tuple(train), d, args.batch_size,
+        args.bptt, gpu=args.gpu, table=table,
         test=None, dev=args.dev_split)
 
     test = BlockDataset(
-        tuple(test), d, args.batch_size, args.bptt, fitted=True, gpu=args.gpu)
+        tuple(test), d, args.batch_size, args.bptt,
+        fitted=True, gpu=args.gpu, table=table)
 
     # conditional structure
     conds = []
@@ -183,7 +185,7 @@ if __name__ == '__main__':
 
     # hook
     check_hook = u.make_clm_hook(
-        d, max_seq_len=args.max_seq_len, samples=5, gpu=args.gpu,
+        d, max_seq_len=args.max_seq_len, gpu=args.gpu, sampled_conds=5,
         method=args.decoding_method, temperature=args.temperature)
     # logger
     std_logger = StdLogger()

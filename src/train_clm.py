@@ -47,7 +47,7 @@ def chars_conds(lines, conds, lang_d, conds_d, table=None):
 def examples_from_lines(lines, conds, lang_d, conds_d, table=None):
     gen = chars_conds(lines, conds, lang_d, conds_d, table=table)
     dims = 2 if table is not None else len(conds_d) + 1
-    return torch.LongTensor(list(gen)).view(dims, -1)
+    return torch.LongTensor(list(gen)).view(-1, dims).t().contiguous()
 
 
 if __name__ == '__main__':

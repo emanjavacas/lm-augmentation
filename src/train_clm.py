@@ -111,8 +111,8 @@ if __name__ == '__main__':
         lang_d, *conds_d = d
     else:
         print("Fitting dictionaries")
-        lang_d = Dict(max_size=args.max_size, min_freq=args.min_freq,
-                      eos_token=u.EOS, bos_token=u.BOS)
+        lang_d = Dict(
+            max_size=args.max_size, min_freq=args.min_freq, eos_token=u.EOS)
         conds_d = [Dict(sequential=False, force_unk=False) for _ in range(2)]
         train_lines, train_conds = zip(*load_data(
             os.path.join(args.path, 'train.csv'), lang_d, conds_d))

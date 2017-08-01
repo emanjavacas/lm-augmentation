@@ -7,6 +7,7 @@ import torch.nn as nn
 from seqmod.modules.lm import LM
 from seqmod.misc.dataset import BlockDataset, Dict, CompressionTable
 from seqmod.misc.optimizer import Optimizer
+from seqmod.misc.early_stopping import EarlyStopping
 from seqmod.misc.trainer import CLMTrainer
 from seqmod.misc.loggers import StdLogger
 import seqmod.utils as u
@@ -75,13 +76,14 @@ if __name__ == '__main__':
     # training
     parser.add_argument('--epochs', default=10, type=int)
     parser.add_argument('--batch_size', default=200, type=int)
+    parser.add_argument('--patience', default=5, type=int)
     parser.add_argument('--bptt', default=150, type=int)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--test_split', type=float, default=0.1)
     parser.add_argument('--dev_split', type=float, default=0.05)
     parser.add_argument('--load_model', action='store_true')
     parser.add_argument('--save_model', action='store_true')
-    parser.add_argument('--model_path')
+    parser.add_argument('--model_path', default='./')
     parser.add_argument('--load_data', action='store_true')
     parser.add_argument('--save_data', action='store_true')
     parser.add_argument('--data_path')
@@ -103,7 +105,6 @@ if __name__ == '__main__':
     parser.add_argument('--log_checkpoints', action='store_true')
     parser.add_argument('--visdom_server', default='localhost')
     parser.add_argument('--save', action='store_true')
-    parser.add_argument('--prefix', default='./', type=str)
     args = parser.parse_args()
 
     if args.load_data:
@@ -181,6 +182,7 @@ if __name__ == '__main__':
         model.parameters(), args.optim, args.learning_rate, args.max_grad_norm,
         lr_decay=args.learning_rate_decay, start_decay_at=args.start_decay_at,
         decay_every=args.decay_every)
+    early_stopping = EarlyStopping(max(args.patience, 10), args.patience)
     criterion = nn.CrossEntropyLoss()
 
     # hook
@@ -192,12 +194,13 @@ if __name__ == '__main__':
     # trainer
     trainer = CLMTrainer(
         model, {'train': train, 'valid': valid, 'test': test},
-        criterion, optim)
+        criterion, optim, early_stopping=early_stopping)
     trainer.add_loggers(std_logger)
     trainer.add_hook(check_hook, hooks_per_epoch=args.hooks_per_epoch)
 
-    trainer.train(args.epochs, args.checkpoint, gpu=args.gpu)
+    (best_model, val_ppl), test_ppl = trainer.train(
+        args.epochs, args.checkpoint, gpu=args.gpu)
 
     if args.save:
-        ppl = trainer.validate_model(test=True)
-        u.save_checkpoint(args.prefix, model, d, vars(args), ppl=ppl[0])
+        u.save_checkpoint(
+            args.model_path, best_model, d, vars(args), ppl=test_ppl)

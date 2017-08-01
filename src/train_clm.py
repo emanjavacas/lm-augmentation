@@ -200,4 +200,4 @@ if __name__ == '__main__':
 
     if args.save:
         ppl = trainer.validate_model(test=True)
-        u.save_checkpoint(args.prefix, model, d, vars(args), ppl=ppl)
+        u.save_checkpoint(args.prefix, model, d, vars(args), ppl=ppl[0])

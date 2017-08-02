@@ -1,4 +1,5 @@
 
+import math
 from pprint import pprint
 
 from seqmod import utils as u
@@ -55,15 +56,15 @@ if __name__ == '__main__':
         return {'loss': loss, 'log_loss': loss, 'early_stop': early_stopping.stopped}
 
     get_params = make_sampler({
-        'pos_emb_dim': [],
-        'pos_hid_dim': [],
-        'word_emb_dim': [],
-        'word_hid_dim': [],
-        'pos_num_layers': [],
-        'word_num_layers': [],
-        'dropout': [],
-        'batch_size': [],
-        'pos_weight': []
+        'pos_emb_dim': ['choice', int, (24, 48)],
+        'pos_hid_dim': ['choice', int, (200, 400, 600)],
+        'word_emb_dim': ['choice', int, (24, 48)],
+        'word_hid_dim': ['choice', int, (200, 400, 600)],
+        'pos_num_layers': ['choice', int, (1, 2)],
+        'word_num_layers': ['choice', int, (1, 2)],
+        'dropout': ['loguniform', float, math.log(0.00001), math.log(0.5)],
+        'batch_size': ['choice', int, (50, 200, 400)],
+        'pos_weight': ['loguniform', float, math.log()]
     })
 
     pprint(Hyperband(get_params, try_params).run())

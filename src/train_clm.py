@@ -183,7 +183,7 @@ if __name__ == '__main__':
         lr_decay=args.learning_rate_decay, start_decay_at=args.start_decay_at,
         decay_every=args.decay_every)
     early_stopping = EarlyStopping(max(args.patience, 10), args.patience)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.NLLLoss()
 
     # hook
     check_hook = u.make_clm_hook(

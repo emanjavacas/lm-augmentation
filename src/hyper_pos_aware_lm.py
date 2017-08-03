@@ -61,8 +61,6 @@ if __name__ == '__main__':
             num_layers=(params['pos_num_layers'], params['word_num_layers']),
             dropout=params['dropout'])
 
-        print(m)
-
         dataset.set_gpu(args.gpu)
         train, valid = dataset.splits(test=None)
 
@@ -80,7 +78,7 @@ if __name__ == '__main__':
         trainer.add_loggers(std_logger)
         (best_model, loss), _ = trainer.train(epochs, args.checkpoint)
 
-        return {'loss': loss, 'log_loss': loss, 'early_stop': early_stopping.stopped}
+        return {'loss': loss, 'early_stop': early_stopping.stopped}
 
     get_params = make_sampler({
         'pos_emb_dim': ['choice', int, (24, 48)],

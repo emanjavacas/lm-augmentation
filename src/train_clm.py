@@ -13,24 +13,7 @@ from seqmod.misc.loggers import StdLogger
 import seqmod.utils as u
 
 from process import readpars
-
-
-def compute_length(l, length_bins):
-    length = len(l)
-    output = None
-    for length_bin in length_bins[::-1]:
-        if length > length_bin:
-            output = length_bin
-            break
-    else:
-        output = -1
-    return output
-
-
-def load_data(path, lang_d, conds_d, length_bins=(50, 100, 150, 300)):
-    for label, lines in readpars(path):
-        for line in lines:
-            yield line, [label, compute_length(line, length_bins)]
+from utils import load_data
 
 
 def chars_conds(lines, conds, lang_d, conds_d, table=None):
@@ -115,8 +98,8 @@ if __name__ == '__main__':
         lang_d = Dict(
             max_size=args.max_size, min_freq=args.min_freq, eos_token=u.EOS)
         conds_d = [Dict(sequential=False, force_unk=False) for _ in range(2)]
-        train_lines, train_conds = zip(*load_data(
-            os.path.join(args.path, 'train.csv'), lang_d, conds_d))
+        data = load_data(os.path.join(args.path, 'train.csv'), lang_d, conds_d)
+        train_lines, train_conds = zip(*data)
         print("Fitting language Dict")
         lang_d.fit(train_lines)
         print("Fitting condition Dicts")
@@ -130,8 +113,8 @@ if __name__ == '__main__':
             train_lines, train_conds, lang_d, conds_d, table=table)
         del train_lines, train_conds
         print("Processing test")
-        test_lines, test_conds = zip(*load_data(
-            os.path.join(args.path, 'test.csv'), lang_d, conds_d))
+        data = load_data(os.path.join(args.path, 'test.csv'), lang_d, conds_d)
+        test_lines, test_conds = zip(*data)
         test = examples_from_lines(
             test_lines, test_conds, lang_d, conds_d, table=table)
         del test_lines, test_conds

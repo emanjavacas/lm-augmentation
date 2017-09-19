@@ -64,7 +64,8 @@ if __name__ == '__main__':
         dataset.set_gpu(args.gpu)
         train, valid = dataset.splits(test=None)
 
-        m.apply(u.make_initializer())
+        u.initialize_model(m)
+
         if args.gpu:
             m.cuda()
 

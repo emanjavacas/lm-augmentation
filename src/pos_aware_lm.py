@@ -341,7 +341,7 @@ if __name__ == '__main__':
         pos_gate=args.pos_gate, word_gate=args.word_gate,
         dropout=args.dropout)
 
-    m.apply(u.make_initializer())
+    u.initialize_model(m)
 
     print(m)
 

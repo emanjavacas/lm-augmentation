@@ -1,6 +1,7 @@
 
 import os
 import math
+import argparse
 from pprint import pprint
 
 from seqmod import utils as u
@@ -15,7 +16,6 @@ import pos_aware_lm
 
 
 if __name__ == '__main__':
-    import argparse
     parser = argparse.ArgumentParser()
     # data
     parser.add_argument('--path')
@@ -30,6 +30,9 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=10, type=int)
     parser.add_argument('--checkpoint', default=20, type=int)
     parser.add_argument('--gpu', action='store_true')
+    # - hyperopts
+    parser.add_argument('--max_iter', default=81, type=int)
+    parser.add_argument('--eta', default=3, type=int)
     args = parser.parse_args()
 
     if args.load_dataset:
@@ -47,45 +50,14 @@ if __name__ == '__main__':
         if args.save_dataset and not os.path.isfile(args.dataset_path):
             dataset.to_disk(args.dataset_path)
 
-    pos_dict, word_dict = dataset.d
+    dataset.set_gpu(args.gpu)
+    train, valid = dataset.splits(test=None)
 
-    std_logger = StdLogger()
-
-    def try_params(epochs, params):
-        epochs = int(epochs)
-
-        m = pos_aware_lm.ChainPOSAwareLM(
-            (len(pos_dict.vocab), len(word_dict.vocab)),  # vocabs
-            (params['pos_emb_dim'], params['word_emb_dim']),
-            (params['pos_hid_dim'], params['word_hid_dim']),
-            num_layers=(params['pos_num_layers'], params['word_num_layers']),
-            dropout=params['dropout'])
-
-        dataset.set_gpu(args.gpu)
-        train, valid = dataset.splits(test=None)
-
-        u.initialize_model(m)
-
-        if args.gpu:
-            m.cuda()
-
-        early_stopping = EarlyStopping(10, patience=3, reset_patience=False)
-        crit = pos_aware_lm.make_pos_word_criterion(gpu=args.gpu)
-        optim = Optimizer(m.parameters(), args.optim, lr=params['lr'])
-        trainer = pos_aware_lm.POSAwareLMTrainer(
-            m, {'train': train, 'valid': valid}, crit, optim,
-            pos_weight=params['pos_weight'],
-            early_stopping=early_stopping)
-        trainer.add_loggers(std_logger)
-        (best_model, loss), _ = trainer.train(epochs, args.checkpoint)
-
-        return {'loss': loss, 'early_stop': early_stopping.stopped}
-
-    get_params = make_sampler({
-        'pos_emb_dim': ['choice', int, (24, 48)],
-        'pos_hid_dim': ['choice', int, (200, 400, 600)],
-        'word_emb_dim': ['choice', int, (24, 48)],
-        'word_hid_dim': ['choice', int, (200, 400, 600)],
+    param_sampler = make_sampler({
+        'pos_emb_dim': ['uniform', int, 24, 48],
+        'pos_hid_dim': ['uniform', int, 200, 400],
+        'word_emb_dim': ['uniform', int, 24, 48],
+        'word_hid_dim': ['uniform', int, 200, 400],
         'pos_num_layers': ['choice', int, (1, 2)],
         'word_num_layers': ['choice', int, (1, 2)],
         'dropout': ['loguniform', float, math.log(0.1), math.log(0.5)],
@@ -93,4 +65,34 @@ if __name__ == '__main__':
         'lr': ['loguniform', float, math.log(0.001), math.log(0.05)]
     })
 
-    pprint(Hyperband(get_params, try_params).run())
+    def model_builder(params):
+        pos_dict, word_dict = dataset.d
+        m = pos_aware_lm.ChainPOSAwareLM(
+            (len(pos_dict.vocab), len(word_dict.vocab)),  # vocabs
+            (params['pos_emb_dim'], params['word_emb_dim']),
+            (params['pos_hid_dim'], params['word_hid_dim']),
+            num_layers=(params['pos_num_layers'], params['word_num_layers']),
+            dropout=params['dropout'])
+        u.initialize_model(m)
+
+        early_stopping = EarlyStopping(10, patience=3, reset_patience=False)
+        criterion = pos_aware_lm.make_pos_word_criterion(gpu=args.gpu)
+        optim = Optimizer(m.parameters(), args.optim, lr=params['lr'])
+        trainer = pos_aware_lm.POSAwareLMTrainer(
+            m, {'train': train, 'valid': valid}, criterion, optim,
+            pos_weight=params['pos_weight'], early_stopping=early_stopping)
+        trainer.add_loggers(StdLogger())
+
+        def run(n_iters):
+            batches = int(len(train) / args.max_iter) * 3
+            if args.gpu:
+                m.cuda()
+            (_, loss), _ = trainer.train_batches(batches, 10, gpu=args.gpu)
+
+            return {'loss': loss, 'early_stop': early_stopping.stopped}
+
+        return run
+
+    hb = Hyperband(param_sampler, model_builder,
+                   max_iter=args.max_iter, eta=args.eta)
+    pprint(hb.run())

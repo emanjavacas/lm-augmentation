@@ -68,8 +68,12 @@ def compute_length(l, length_bins=(50, 100, 150, 300)):
 
 
 class Reader(object):
-    def __init__(self, path, tokenizer):
-        self.fileiter = [os.path.join(path, f) for f in os.listdir(path)]
+    def __init__(self, fileiter, tokenizer):
+        if isinstance(fileiter, str):
+            self.fileiter = [os.path.join(fileiter, f)
+                             for f in os.listdir(fileiter)]
+        else:
+            self.fileiter = fileiter
         self.tokenizer = tokenizer
 
     def on_filename(self, filename):
@@ -89,14 +93,12 @@ class Reader(object):
         return len(sent)
 
     def process(self, shuffle_files=True, shuffle_pars=False,
-                balance=False, balance_ref=None, balance_count=None):
+                balance_ref=None, balance_count=None):
         """
         Generator over labeled sentences.
 
         Parameters:
         -----------
-        balance: bool, whether to balance output on count based on a given
-            sentence label such as author.
         balance_ref: None or int, integer pointing to the position in the
             sentence label array of the label to be used for balancing
         balance_count: None or int, maximum count per balancing label
@@ -111,15 +113,14 @@ class Reader(object):
                 pars.append((file_labels + par_labels, par))
         if shuffle_pars:
             random.shuffle(pars)
-        if balance is not None:
+        if balance_ref is not None and balance_count is not None:
             balance_counter = Counter(int)
         for labels, par in pars:
             for sent in split_sentences(par, self.tokenizer):
                 sent_labels = labels + self.on_sent(sent)
-                if balance is not None:
-                    sent_length = self.sent_length(sent)
+                if balance_ref is not None and balance_count is not None:
                     ref = sent_labels[balance_ref]
-                    balance_counter[ref] += sent_length
+                    balance_counter[ref] += self.sent_length(sent)
                     if balance_counter[ref] > balance_count:
                         continue
                 yield sent_labels, sent
@@ -152,6 +153,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     random.seed(args.seed)
+
     reader = Reader(args.corpus, make_tokenizer(args.lang))
     rows = list(reader.process(shuffle_files=True, shuffle_pars=True))
     split = int(len(rows) * args.train_size)

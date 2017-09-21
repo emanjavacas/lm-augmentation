@@ -1,9 +1,28 @@
 
+import os
+import csv
 import json
 import math
-import pprint
 
 from sklearn.metrics import precision_recall_fscore_support
+
+
+def get_author(fname):
+    return os.path.basename(fname).split('_')[0]
+
+
+def writelines(outputfile, rows):
+    with open(outputfile + '.csv', 'w+', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter='\t')
+        for ls, sent in rows:
+            csvwriter.writerow([*ls, sent])
+
+
+def readlines(inputfile):
+    with open(inputfile, 'r', newline='\n') as f:
+        for line in f:
+            *labels, sent = line.split('\t')
+            yield labels, sent
 
 
 def compute_length(l, length_bins=(50, 100, 150, 300)):
@@ -16,12 +35,6 @@ def compute_length(l, length_bins=(50, 100, 150, 300)):
     else:
         output = -1
     return output
-
-
-def load_data(path, lang_d, conds_d, length_bins=(50, 100, 150, 300)):
-    for label, lines in readpars(path):
-        for line in lines:
-            yield line, [label, compute_length(line, length_bins)]
 
 
 def test_report(y_true, y_pred, le=None):

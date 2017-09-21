@@ -1,5 +1,4 @@
 
-import pprint
 import multiprocessing
 
 import numpy as np
@@ -8,18 +7,6 @@ from sklearn import svm, preprocessing
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.externals import joblib
-
-from process import readpars
-from utils import test_report
-
-
-def pars_to_X(inputfile):
-    X, y = [], []
-    for label, lines in readpars(inputfile):
-        y.append(label), X.append('\r\n'.join(lines))
-    return X, y
 
 
 def grid_report(results, n_top=3):
@@ -37,7 +24,7 @@ def grid_report(results, n_top=3):
 def todense(X): return X.todense()
 
 
-def svm_search(X_train, y_train, n_iter=100, seed=1001, cv=5):
+def svm_search(X, y, n_iter=100, seed=1001, cv=5):
     pipe = Pipeline(
         [('vectorizer', TfidfVectorizer()),
          ('to_dense', preprocessing.FunctionTransformer(
@@ -63,30 +50,6 @@ def svm_search(X_train, y_train, n_iter=100, seed=1001, cv=5):
         n_iter=n_iter,
         random_state=seed)
 
-    grid.fit(X_train, y_train)
+    grid.fit(X, y)
 
     return grid
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('trainfile')
-    parser.add_argument('testfile')
-    parser.add_argument('--outputfile')
-    parser.add_argument('--n_iter', type=int, default=100)
-    parser.add_argument('--cv', type=int, default=5)
-    args = parser.parse_args()
-
-    X_train, y_train = pars_to_X(args.trainfile)
-    le = preprocessing.LabelEncoder().fit(y_train)
-    grid = svm_search(X_train, le.transform(y_train), n_iter=args.n_iter, cv=args.cv)
-
-    grid_report(grid.cv_results_)
-
-    X_test, y_test = pars_to_X(args.testfile)
-    y_pred = grid.predict(X_test)
-
-    pprint(test_report(le.transform(y_test), y_pred, le))
-
-    if args.outputfile:
-        joblib.dump(grid, args.outputfile)

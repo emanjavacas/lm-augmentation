@@ -1,5 +1,7 @@
 
+import time
 import random
+
 import seqmod.utils as u
 
 
@@ -27,11 +29,11 @@ class CLMGenerator:
         return total_score, doc
 
 
-m = u.load_model("../models/cLSTM-l1-h2048-e48-b150-2.633.pt")
-model, (lang_d, *conds_d) = m['model'], m['d']
-model.cuda()
-generator = CLMGenerator(model, lang_d, conds_d)
-import time
-start = time.time()
-out = generator.generate_doc(['Cbronte', None], gpu=True, batch_size=100)
-print(time.time() - start)
+if __name__ == '__main__':
+    m = u.load_model("../models/cLSTM-l1-h2048-e48-b150-2.633.pt")
+    model, (lang_d, *conds_d) = m['model'], m['d']
+    model.cuda()
+    generator = CLMGenerator(model, lang_d, conds_d)
+    start = time.time()
+    out = generator.generate_doc(['Cbronte', None], gpu=True, batch_size=100)
+    print(time.time() - start)

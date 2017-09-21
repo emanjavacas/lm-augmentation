@@ -1,4 +1,5 @@
 
+import math
 import time
 import json
 
@@ -7,8 +8,7 @@ from torch.autograd import Variable
 
 import seqmod.utils as u
 
-from process import readpars
-from utils import compute_length
+from utils import compute_length, readlines
 
 
 class CLMClassifier(object):
@@ -51,7 +51,7 @@ class CLMClassifier(object):
         for n_author, author_logits in enumerate(logits):
             author = self.author_d.vocab[n_author]
             true_logits = u.select_cols(author_logits[:-1], chars[1:])
-            preds[author] = true_logits.sum() / len(true_logits)
+            preds[author] = math.exp((true_logits / len(true_logits)).sum())
         return preds
 
 
@@ -63,22 +63,22 @@ if __name__ == '__main__':
     parser.add_argument('--outputfile', default='output.json')
     parser.add_argument('--gpu', action='store_true')
     args = parser.parse_args()
-    
-    pars = readpars(args.inputfile)
-    clf = CLMClassifier(args.modelfile, gpu=args.gpu)
-    labels, pars = zip(*pars)
 
-    print("Predicting {} pars".format(len(pars)))
+    lines = readlines(args.inputfile)
+    clf = CLMClassifier(args.modelfile, gpu=args.gpu)
+    labels, lines = zip(*lines)
+
+    print("Predicting {} lines".format(len(lines)))
     start = time.time()
-    for idx, (label, par) in enumerate(zip(labels, pars[300:])):
-        parlength = len(''.join(par))
-        if args.gpu and parlength > 4000:  # don't classify too long pars OOE
+    for idx, (label, line) in enumerate(zip(labels, lines[300:])):
+        linelength = len(''.join(line))
+        if args.gpu and linelength > 4000:  # don't classify too long pars OOE
             print("Omitting too long document {}".format(idx))
             continue
-        print("parlength {}".format(parlength))
-        preds = clf.classify(par)
+        print("linelength {}".format(linelength))
+        preds = clf.classify(line)
         with open(args.outputfile, 'a') as f:
-            preds = {'preds': preds, 'true': label, 'length': parlength}
+            preds = {'preds': preds, 'true': label, 'length': linelength}
             jsonstr = json.dumps(preds)
             f.write(jsonstr + '\n')
     print("Took {}".format(time.time() - start))

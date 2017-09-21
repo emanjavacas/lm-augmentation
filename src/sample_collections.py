@@ -3,11 +3,8 @@ import os
 import random
 from collections import defaultdict
 
-from preprocess import Reader, make_tokenizer, writelines
-
-
-def get_author(fname):
-    return os.path.basename(fname).split('_')[0]
+from preprocess import Reader, make_tokenizer
+from utils import writelines, get_author
 
 
 def sample_files(path, nb_docs, nb_words):

@@ -1,9 +1,10 @@
 
 import os
-import csv
 import warnings
 import random; random.seed(1001)
 from collections import Counter
+
+from utils import compute_length, writelines
 
 try:
     import ucto
@@ -54,18 +55,6 @@ def split_pars(filename):
             else:
                 buf += line + '\n'
                 prev_par = False
-
-
-def compute_length(l, length_bins=(50, 100, 150, 300)):
-    length = len(l)
-    output = None
-    for length_bin in length_bins[::-1]:
-        if length > length_bin:
-            output = length_bin
-            break
-    else:
-        output = -1
-    return output
 
 
 class Reader(object):
@@ -125,20 +114,6 @@ class Reader(object):
                     if balance_counter[ref] > balance_count:
                         continue
                 yield sent_labels, sent
-
-
-def writelines(outputfile, rows):
-    with open(outputfile + '.csv', 'w+', newline='') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter='\t')
-        for ls, sent in rows:
-            csvwriter.writerow([*ls, sent])
-
-
-def readlines(inputfile):
-    with open(inputfile, 'r', newline='\n') as f:
-        for line in f:
-            *labels, sent = line.split('\t')
-            yield labels, sent
 
 
 if __name__ == '__main__':

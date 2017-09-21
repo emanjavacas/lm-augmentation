@@ -2,6 +2,7 @@
 import os
 import csv
 import warnings
+import random; random.seed(1001)
 from collections import Counter
 
 try:
@@ -126,7 +127,7 @@ class Reader(object):
                 yield sent_labels, sent
 
 
-def writelines(outputfile, rows, include_lengths=True):
+def writelines(outputfile, rows):
     with open(outputfile + '.csv', 'w+', newline='') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter='\t')
         for ls, sent in rows:
@@ -142,7 +143,6 @@ def readlines(inputfile):
 
 if __name__ == '__main__':
     import argparse
-    import random
     parser = argparse.ArgumentParser(
         description="Compute train, test splits for an input corpus")
     parser.add_argument('corpus')
@@ -151,8 +151,6 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=1000, type=int)
     parser.add_argument('--lang', default='eng')
     args = parser.parse_args()
-
-    random.seed(args.seed)
 
     reader = Reader(args.corpus, make_tokenizer(args.lang))
     rows = list(reader.process(shuffle_files=True, shuffle_pars=True))

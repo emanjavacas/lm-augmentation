@@ -35,14 +35,15 @@ def sample_split(files, nb_docs, nb_words, outputpath='output', lang='eng'):
         author, fs = get_author(fs[0]), list(fs)
         sents = Reader(fs, make_tokenizer(lang)).process(shuffle_pars=True)
         doc_length, doc, docs = 0, [], 0
-        while docs < nb_docs:
-            for labels, sent in sents:
-                doc_length += len(sent.split())
-                doc.append((labels, sent))
-                if doc_length >= nb_words:
-                    filename = '{}_{}'.format(author, docs + 1)
-                    writelines(os.path.join(outputpath, filename), doc)
-                    doc_length, doc, docs = 0, [], docs + 1
+        for labels, sent in sents:
+            doc_length += len(sent.split())
+            doc.append((labels, sent))
+            if doc_length >= nb_words:
+                filename = '{}_{}'.format(author, docs + 1)
+                writelines(os.path.join(outputpath, filename), doc)
+                doc_length, doc, docs = 0, [], docs + 1
+            if docs >= nb_docs:
+                break
 
 
 if __name__ == '__main__':

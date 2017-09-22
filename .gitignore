@@ -103,5 +103,9 @@ ENV/
 # emacs
 *~
 
-# dir
-data
+# data
+*.csv
+*.train
+
+# pt models
+*.pt

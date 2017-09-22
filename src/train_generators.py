@@ -48,28 +48,28 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     # model
-    parser.add_argument('--num_layers', default=2, type=int)
+    parser.add_argument('--num_layers', default=1, type=int)
     parser.add_argument('--cell', default='LSTM')
-    parser.add_argument('--emb_dim', default=200, type=int)
-    parser.add_argument('--hid_dim', default=200, type=int)
+    parser.add_argument('--emb_dim', default=48, type=int)
+    parser.add_argument('--hid_dim', default=1000, type=int)
     parser.add_argument('--dropout', default=0.3, type=float)
-    parser.add_argument('--deepout_layers', default=0, type=int)
+    parser.add_argument('--deepout_layers', default=1, type=int)
     parser.add_argument('--deepout_act', default='MaxOut')
-    parser.add_argument('--maxouts', default=2, type=int)
+    parser.add_argument('--maxouts', default=3, type=int)
     parser.add_argument('--train_init', action='store_true')
     # dataset
     parser.add_argument('--path', required=True)
     parser.add_argument('--dev_split', default=0.1, type=float)
     # training
-    parser.add_argument('--epochs', default=10, type=int)
+    parser.add_argument('--epochs', default=75, type=int)
     parser.add_argument('--batch_size', default=20, type=int)
-    parser.add_argument('--bptt', default=20, type=int)
+    parser.add_argument('--bptt', default=50, type=int)
     parser.add_argument('--gpu', action='store_true')
     # - optimizer
     parser.add_argument('--optim', default='Adam', type=str)
-    parser.add_argument('--lr', default=0.01, type=float)
+    parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--max_norm', default=5., type=float)
-    parser.add_argument('--early_stopping', default=3, type=int)
+    parser.add_argument('--patience', default=10, type=int)
     # - check
     parser.add_argument('--seed', default=None)
     parser.add_argument('--checkpoint', default=200, type=int)
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         optim = Optimizer(
             m.parameters(), args.optim, lr=args.lr, max_norm=args.max_norm)
         crit = nn.NLLLoss()
-        early_stopping = EarlyStopping(10, patience=args.early_stopping)
+        early_stopping = EarlyStopping(10, patience=args.patience)
         trainer = LMTrainer(m, {"train": train, "valid": valid}, crit, optim,
                             early_stopping=early_stopping)
         logger = StdLogger(os.path.join(args.path, f'{author}.train'))

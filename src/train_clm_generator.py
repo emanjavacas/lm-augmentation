@@ -43,25 +43,25 @@ if __name__ == '__main__':
     parser.add_argument('--layers', default=1, type=int)
     parser.add_argument('--cell', default='LSTM')
     parser.add_argument('--emb_dim', default=48, type=int)
-    parser.add_argument('--cond_emb_dim', default=24)
-    parser.add_argument('--hid_dim', default=640, type=int)
+    parser.add_argument('--cond_emb_dim', default=48)
+    parser.add_argument('--hid_dim', default=1024, type=int)
     parser.add_argument('--dropout', default=0.3, type=float)
-    parser.add_argument('--deepout_layers', default=0, type=int)
+    parser.add_argument('--deepout_layers', default=1, type=int)
+    parser.add_argument('--maxouts', default=3, type=int)
     parser.add_argument('--deepout_act', default='MaxOut')
     # dataset
     parser.add_argument('--path')
     # training
-    parser.add_argument('--epochs', default=100, type=int)
-    parser.add_argument('--batch_size', default=200, type=int)
-    parser.add_argument('--patience', default=5, type=int)
-    parser.add_argument('--bptt', default=150, type=int)
+    parser.add_argument('--epochs', default=75, type=int)
+    parser.add_argument('--batch_size', default=20, type=int)
+    parser.add_argument('--patience', default=10, type=int)
+    parser.add_argument('--bptt', default=50, type=int)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--dev_split', type=float, default=0.1)
     # - optimizer
     parser.add_argument('--optim', default='Adam', type=str)
-    parser.add_argument('--lr', default=0.01, type=float)
+    parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--max_norm', default=5., type=float)
-    parser.add_argument('--early_stopping', default=-1, type=int)
     # - check
     parser.add_argument('--checkpoint', default=200, type=int)
     parser.add_argument('--hooks_per_epoch', default=5, type=int)
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     optim = Optimizer(
         m.parameters(), args.optim, lr=args.lr, max_norm=args.max_norm)
     crit = nn.NLLLoss()
-    early_stopping = EarlyStopping(10, patience=args.early_stopping)
+    early_stopping = EarlyStopping(10, patience=args.patience)
     trainer = CLMTrainer(m, {"train": train, "valid": valid}, crit, optim,
                          early_stopping=early_stopping)
     logger = StdLogger(os.path.join(args.path, f'clm.train'))

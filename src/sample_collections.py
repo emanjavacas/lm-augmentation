@@ -56,6 +56,16 @@ if __name__ == '__main__':
     parser.add_argument('--lang', default='eng')
     args = parser.parse_args()
 
+    alpha_path = os.path.join(args.outputpath, 'alpha')
+    omega_path = os.path.join(args.outputpath, 'omega')
+
+    if not os.path.isdir(alpha_path):
+        os.makedirs(alpha_path)
+    if not os.path.isdir(omega_path):
+        os.makedirs(omega_path)
+
     alpha, omega = sample_files(args.path, args.nb_docs, args.nb_words)
     sample_split(alpha, args.nb_docs, args.nb_words,
-                 outputpath=args.outputpath, lang=args.lang)
+                 outputpath=alpha_path, lang=args.lang)
+    sample_split(omega, args.nb_docs, args.nb_words,
+                 outputpath=omega_path, lang=args.lang)

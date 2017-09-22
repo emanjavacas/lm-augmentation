@@ -126,4 +126,4 @@ if __name__ == '__main__':
         args.epochs, args.checkpoint, gpu=args.gpu)
 
     m_path = os.path.join(models_dir, f'clm_{valid_loss}')
-    u.save_model(best_m, m_path, d=d)
+    u.save_model(best_m, m_path, d=(d, table))

@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # training
     parser.add_argument('--epochs', default=75, type=int)
     parser.add_argument('--batch_size', default=20, type=int)
-    parser.add_argument('--patience', default=10, type=int)
+    parser.add_argument('--patience', default=5, type=int)
     parser.add_argument('--bptt', default=50, type=int)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--dev_split', type=float, default=0.1)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--hooks_per_epoch', default=5, type=int)
     args = parser.parse_args()
 
-    models_dir = 'models/lm'
+    models_dir = 'models/clm'
     if not os.path.isdir(models_dir):
         os.makedirs(models_dir)
 
@@ -115,7 +115,8 @@ if __name__ == '__main__':
     optim = Optimizer(
         m.parameters(), args.optim, lr=args.lr, max_norm=args.max_norm)
     crit = nn.NLLLoss()
-    early_stopping = EarlyStopping(10, patience=args.patience)
+    early_stopping = EarlyStopping(
+        10, patience=args.patience, reset_patience=False)
     trainer = CLMTrainer(m, {"train": train, "valid": valid}, crit, optim,
                          early_stopping=early_stopping)
     logger = StdLogger(os.path.join(args.path, f'clm.train'))

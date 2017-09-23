@@ -69,14 +69,14 @@ if __name__ == '__main__':
     parser.add_argument('--optim', default='Adam', type=str)
     parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--max_norm', default=5., type=float)
-    parser.add_argument('--patience', default=10, type=int)
+    parser.add_argument('--patience', default=5, type=int)
     # - check
     parser.add_argument('--seed', default=None)
     parser.add_argument('--checkpoint', default=200, type=int)
     parser.add_argument('--hooks_per_epoch', default=5, type=int)
     args = parser.parse_args()
 
-    authors = [get_author(f) for f in os.listdir(args.path)]
+    authors = set([get_author(f) for f in os.listdir(args.path)])
     models_dir = 'models/lm'
     if not os.path.isdir(models_dir):
         os.makedirs(models_dir)
@@ -101,10 +101,11 @@ if __name__ == '__main__':
         optim = Optimizer(
             m.parameters(), args.optim, lr=args.lr, max_norm=args.max_norm)
         crit = nn.NLLLoss()
-        early_stopping = EarlyStopping(10, patience=args.patience)
+        early_stopping = EarlyStopping(
+            10, patience=args.patience, reset_patience=False)
         trainer = LMTrainer(m, {"train": train, "valid": valid}, crit, optim,
                             early_stopping=early_stopping)
-        logger = StdLogger(os.path.join(args.path, f'{author}.train'))
+        logger = StdLogger(os.path.join(models_dir, f'{author}.train'))
         trainer.add_loggers(logger)
 
         # run

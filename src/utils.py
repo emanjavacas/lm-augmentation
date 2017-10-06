@@ -53,33 +53,3 @@ def test_report(y_true, y_pred, le=None):
                         'f1': f1[i],
                         'support': int(s[i])}})
     return report
-
-
-def get_trues_preds(outputfile):
-    trues, preds, lengths = [], [], []
-    with open(outputfile, 'r') as f:
-        for line in f:
-            line = json.loads(line.strip())
-            argmax, maxpred = None, -math.inf
-            for author, pred in line['preds'].items():
-                if float(pred) > maxpred:
-                    argmax = author
-                    maxpred = float(pred)
-            preds.append(argmax)
-            trues.append(line['true'])
-            lengths.append(line['length'])
-    return trues, preds
-
-
-def get_trues_ranked_preds(outputfile):
-    trues, preds, lengths = [], [], []
-    with open(outputfile, 'r') as f:
-        for line in f:
-            line = json.loads(line.strip())
-            ranked = sorted(
-                line['preds'].items(), key=lambda item: float(item[1]),
-                reverse=True)
-            preds.append([label for label, _ in ranked])
-            trues.append(line['true'])
-            lengths.append(line['length'])
-    return trues, preds

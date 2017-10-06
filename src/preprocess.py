@@ -17,6 +17,7 @@ def make_tokenizer(lang):
     if ucto is not None:
         return ucto.Tokenizer("tokconfig-{lang}".format(lang=lang),
                               paragraphdetection=True)
+    return None
 
 
 def split_sentences(par, tokenizer):
@@ -39,7 +40,7 @@ def split_sentences(par, tokenizer):
             yield sentence
     else:
         for line in par.split('\n'):
-            yield line.split()
+            yield line
 
 
 def split_pars(filename):
@@ -55,6 +56,9 @@ def split_pars(filename):
             else:
                 buf += line + '\n'
                 prev_par = False
+        else:
+            if buf:
+                yield buf
 
 
 class Reader(object):

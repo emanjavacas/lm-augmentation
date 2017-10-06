@@ -44,13 +44,18 @@ def sample_split(files, nb_docs, nb_words, outputpath='output', lang='eng'):
                 doc_length, doc, docs = 0, [], docs + 1
             if docs >= nb_docs:
                 break
+        else:
+            if doc_length < nb_words:
+                raise ValueError(f"Too small doc for {author}, {doc_length}")
+            if docs <= nb_docs:
+                raise ValueError(f"Not enough documents for {author}, {docs}")
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path')
-    parser.add_argument('--outputpath')
+    parser.add_argument('path')
+    parser.add_argument('outputpath')
     parser.add_argument('--nb_docs', type=int, default=10)
     parser.add_argument('--nb_words', type=int, default=10000)
     parser.add_argument('--lang', default='eng')

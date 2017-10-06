@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.externals import joblib
 from sklearn import svm
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
-from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
         dirs = ('alpha', 'omega')
         for d in dirs:
-            
+
             # fit grid
             X, y = load_dataset(os.path.join(args.path, d))
             le = LabelEncoder().fit(y)
@@ -196,7 +196,8 @@ if __name__ == '__main__':
                 n_iter=args.n_iter, cv=args.cv)
 
             grid_output_file = os.path.join(
-                args.outputpath, f'augmented_{breakpoint}.{args.model}.grid.pk')
+                args.outputpath,
+                f'augmented_{breakpoint}.{args.model}.grid.pk')
             print(f"Saving grid for bp {breakpoint} on {grid_output_file}")
             joblib.dump(grid, grid_output_file)
 

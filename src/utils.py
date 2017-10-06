@@ -1,8 +1,6 @@
 
 import os
 import csv
-import json
-import math
 
 from sklearn.metrics import precision_recall_fscore_support
 

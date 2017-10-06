@@ -26,14 +26,18 @@ def load_dataset(path, authors=None):
             print(f"Skipping author {author}")
             continue
         doc = ""
-        for _, line in readlines(os.path.join(path, f)):
-            doc += line
+        if f.endswith(".csv"):
+            for _, line in readlines(os.path.join(path, f)):
+                doc += line
+        else:
+            with open(os.path.join(path, f), 'r') as f:
+                for line in f:
+                    doc += line.strip()
         X.append(doc), y.append(author)
     return X, y
 
 
 def sample_docs(f, nb_words):
-    docs = []
     with open(f, 'r+') as f:
         doc = ""
         for line in f:

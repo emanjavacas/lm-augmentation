@@ -162,7 +162,7 @@ if __name__ == '__main__':
                 reportfile = os.path.join(
                     args.outputpath, f'{d}.{dd}.report.json')
                 with open(reportfile, 'w') as f:
-                    json.dump(report, reportfile)
+                    json.dump(report, f)
 
     # Do augmentation (requires alpha_bar)
     else:
@@ -214,4 +214,4 @@ if __name__ == '__main__':
             reportfile = os.path.join(
                 args.outputpath, f'augmented_{breakpoint}.{model}.report.json')
             with open(reportfile, 'w') as f:
-                json.dump(report, reportfile)
+                json.dump(report, f)

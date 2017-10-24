@@ -212,6 +212,6 @@ if __name__ == '__main__':
             report = test_report(le.transform(omega_y), y_pred, le)
             pprint(report)
             reportfile = os.path.join(
-                args.outputpath, f'augmented_{breakpoint}.{model}.report.json')
+                args.outputpath, f'augmented_{breakpoint}.{args.model}.report.json')
             with open(reportfile, 'w') as f:
                 json.dump(report, f)

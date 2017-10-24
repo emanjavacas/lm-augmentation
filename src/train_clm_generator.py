@@ -82,13 +82,19 @@ if __name__ == '__main__':
     conds_d = [Dict(sequential=False, force_unk=False)
                for _ in range(len(conds[0]))]
     lang_d = Dict(eos_token=u.EOS)
+
     print("Fitting language Dict")
     lang_d.fit(lines)
     print(lang_d)
+
     print("Fitting condition Dicts")
     for d, cond in zip(conds_d, list(map(list, zip(*conds)))):
-        d.fit([cond])
+        d.fit(cond)
+        print(d)
+
+    print("Building compression table")
     table = CompressionTable(len(conds[0]))
+
     data = examples_from_lines(lines, conds, lang_d, conds_d, table=table)
     del lines, conds
     d = tuple([lang_d] + conds_d)

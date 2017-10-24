@@ -11,12 +11,10 @@ except:
     warnings.warn('no NVIDIA driver found')
     torch.manual_seed(1001)
 
-import torch.nn as nn
-
 from seqmod.modules.lm import LM
 from seqmod import utils as u
 
-from seqmod.misc.trainer import LMTrainer
+from seqmod.misc.trainer import Trainer
 from seqmod.misc.loggers import StdLogger
 from seqmod.misc.optimizer import Optimizer
 from seqmod.misc.dataset import Dict, BlockDataset
@@ -93,24 +91,25 @@ if __name__ == '__main__':
                dropout=args.dropout, train_init=args.train_init,
                deepout_layers=args.deepout_layers,
                deepout_act=args.deepout_act, maxouts=args.maxouts)
+
         u.initialize_model(m)
+
         if args.gpu:
             m.cuda()
 
         # trainer
         optim = Optimizer(
             m.parameters(), args.optim, lr=args.lr, max_norm=args.max_norm)
-        crit = nn.NLLLoss()
+
         early_stopping = EarlyStopping(
             10, patience=args.patience, reset_patience=False)
-        trainer = LMTrainer(m, {"train": train, "valid": valid}, crit, optim,
-                            early_stopping=early_stopping)
+        trainer = Trainer(m, {"train": train, "valid": valid}, optim,
+                          early_stopping=early_stopping)
         logger = StdLogger(os.path.join(models_dir, f'{author}.train'))
         trainer.add_loggers(logger)
 
         # run
-        (best_m, valid_loss), _ = trainer.train(
-            args.epochs, args.checkpoint, gpu=args.gpu)
+        (best_m, valid_loss), _ = trainer.train(args.epochs, args.checkpoint)
 
-        m_path = os.path.join(models_dir, f'{author}_{valid_loss}')
+        m_path = os.path.join(models_dir, f'{author}_{sum(valid_loss.pack())}')
         u.save_model(best_m, m_path, d=d)

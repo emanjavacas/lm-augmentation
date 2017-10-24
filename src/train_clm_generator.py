@@ -2,13 +2,12 @@
 import os
 
 import torch
-import torch.nn as nn
 
 from seqmod.modules.lm import LM
 from seqmod.misc.dataset import BlockDataset, Dict, CompressionTable
 from seqmod.misc.optimizer import Optimizer
 from seqmod.misc.early_stopping import EarlyStopping
-from seqmod.misc.trainer import CLMTrainer
+from seqmod.misc.trainer import Trainer
 from seqmod.misc.loggers import StdLogger
 import seqmod.utils as u
 
@@ -73,24 +72,31 @@ if __name__ == '__main__':
 
     # dataset
     print("Loading data")
+
     conds, lines = [], []
     for f in os.listdir(args.path):
         for cs, line in readlines(os.path.join(args.path, f)):
             if len(cs) == 0:
                 continue
             conds.append(cs), lines.append(line)
+
     conds_d = [Dict(sequential=False, force_unk=False)
                for _ in range(len(conds[0]))]
-    lang_d = Dict(eos_token=u.EOS)
+
+    lang_d = Dict(eos_token=u.EOS, force_unk=True)
+
     print("Fitting language Dict")
     lang_d.fit(lines)
     print(lang_d)
+
     print("Fitting condition Dicts")
     for d, cond in zip(conds_d, list(map(list, zip(*conds)))):
         d.fit([cond])
+
     table = CompressionTable(len(conds[0]))
     data = examples_from_lines(lines, conds, lang_d, conds_d, table=table)
     del lines, conds
+
     d = tuple([lang_d] + conds_d)
     train, valid = BlockDataset.splits_from_data(
         tuple(data), d, args.batch_size, args.bptt, gpu=args.gpu,
@@ -107,24 +113,27 @@ if __name__ == '__main__':
            num_layers=args.layers, cell=args.cell, dropout=args.dropout,
            deepout_layers=args.deepout_layers, deepout_act=args.deepout_act,
            conds=conds)
+
     u.initialize_model(m)
+
     if args.gpu:
         m.cuda()
 
     # trainer
     optim = Optimizer(
         m.parameters(), args.optim, lr=args.lr, max_norm=args.max_norm)
-    crit = nn.NLLLoss()
+
     early_stopping = EarlyStopping(
         10, patience=args.patience, reset_patience=False)
-    trainer = CLMTrainer(m, {"train": train, "valid": valid}, crit, optim,
-                         early_stopping=early_stopping)
+
+    trainer = Trainer(m, {"train": train, "valid": valid}, optim,
+                      early_stopping=early_stopping)
+
     logger = StdLogger(os.path.join(args.path, f'clm.train'))
     trainer.add_loggers(logger)
 
     # run
-    (best_m, valid_loss), _ = trainer.train(
-        args.epochs, args.checkpoint, gpu=args.gpu)
+    (best_m, valid_loss), _ = trainer.train(args.epochs, args.checkpoint)
 
-    m_path = os.path.join(models_dir, f'clm_{valid_loss}')
+    m_path = os.path.join(models_dir, f'clm_{sum(valid_loss.pack())}')
     u.save_model(best_m, m_path, d=(d, table))
